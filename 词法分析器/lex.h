@@ -29,42 +29,12 @@ public:
 	Node* nodes;//各个节点，采用的数组形式
 	int newNode();//获得最最后一个节点的下一个，相当于分配
 	bool extendNodes();//扩展nodes数组
+	void insertArc(int index,Arc* a);//给index这个节点插入一条弧
+	int getTail();
 	Graph(int maxLength=100);
 	~Graph();		//析构函数，主要是回收nodes和nodes的链表的内存空间
 
 };
-Graph::Graph(int maxLength = 100){
-	this->tail = 0;
-	this->maxLength = maxLength;
-}
-Graph::~Graph(){
-	
-	//回收边
-	for (int i = 0; i < tail; i++){
-		Node t = this->nodes[i];
-		//回收具体t的边
-		Arc* a = t.firstArc;
-		//判断这个节点是不是没有弧
-		if (a != NULL){
-			
-			//会在a->next=NULL的时候跳出所以需要额外进行一次delete
-			while (a->nextArc != NULL){
-				Arc* t = a->nextArc;
-				delete a;
-				a = t;
-			}
-			delete a;
-		}
-		printf("%d节点的弧被回收\n", i);
-	}
-	printf("弧回收完成");
-
-	delete this->nodes;
-
-	printf("节点回收完成");
-
-
-}
 
 
 //考虑NFA，几个转化都是在这个类中实现的
@@ -83,28 +53,6 @@ public:
 
 	~NFA();//不用析构g了,g会被g的析构函数自动析构,主要是需要去析构allWords和F0
 };
-NFA::NFA(Graph& g, int S0, char* allWord, int wordLength, int* F0, int F0Length){
-	this->allWord = allWord;
-	this->g = g;
-	this->S0 = S0;
-	this->wordLength = wordLength;
-	this->F0Length = F0Length;
-	this->allWord = new char[this->wordLength];
-	for (int i = 0; i < wordLength; i++){
-		this->allWord[i] = allWord[i];
-	}
-
-
-	this->F0 = new int[this->F0Length];
-	for (int i = 0; i < F0Length; i++){
-		this->F0[i] = F0[i];
-	}
-}
-NFA::~NFA(){
-	delete this->F0;
-	delete this->allWord;
-	printf("NFA回收成功");
-}
 
 //栈的中间结果
 struct MidResult
@@ -119,26 +67,35 @@ class Operation
 {
 private:
 	int index=0;//解析到表达式的位置;
-	bool pri[6][6];//运算符号的优先级,六个运算符（"(",")","#","|",".","*"）;
-
+	//运算符号的优先级,六个运算符（"(",")","#","|",".","*"）,pri[i][j],表示i的优先级是不是大于j，i在j的左边
+	//1表示不需要操作，直接入栈，0表示需要进行操作
+	bool pri[6][6];
+	char ops[7];
 	//展开运算式子，主要是用来将正规式子的一些特殊的含义字符展开，为只有上面的几个运算符合运算元素的字符串
 	char* unfoldExpre(char* expression);
 
+	
+	int getopIndex(char op);//找到op的下标
+
+	bool connectOp(Graph& g, MidResult& a, MidResult& b);//连接运算。,a=a。b
+
+	bool andOp(Graph& g, MidResult& a, MidResult& b);//与运算|,a=a|b
+
+	bool closureOp(Graph& g, MidResult& a);//闭包运算, a=a*
+
+	char getNextChar(char* expression);//针对于正规式，和算术表达式不一样，对于正规是操作数和操作符都只会占一个字符位置
+
+	bool isOp(const char a);//判断a是不是操作符，如果是则返回1不是则返回0
+
+	MidResult conversion(Graph& g, char a);//将字符串转化一下，同时也需要在图上给他分配空间
 
 public:
 	Operation();
 	~Operation();
-	NFA calute(char* expression, int expLength);//计算一个正规式子，输出一个NFA
+	//计算一个正规式子，输出一个NFA,计算没有出错会返回1出错会返回0,同时也需要给出S0和F0，采用这种方法构造的终态只有一个
+	bool calute(Graph& g,char* expression,int& S0,int& F0);
 };
 
-Operation::Operation()
-{
-	this->index = 0;
-}
-
-Operation::~Operation()
-{
-}
 
 
 #endif
