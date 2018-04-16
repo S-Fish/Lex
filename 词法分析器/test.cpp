@@ -30,18 +30,13 @@ void printG(Graph& g){
 }
 
 //测试第一个转化器
-void testNFAconver(){
+void testNFAconver(Graph& g){
 	char* ex="(a|b)*.c.d.e#" ;
 
-	Operation op;
-
-	Graph g(12);
-
-	int S0=0, F0=0;
-
-	op.calute(g, ex, S0, F0);
+	NFA nfa("abcde",ex);
 	
-	printG(g);
+	//printG(nfa.getG());
+	g = nfa.getG();
 	/*
 	cout << "S0:" << S0 << endl;
 
@@ -51,7 +46,12 @@ void testNFAconver(){
 
 int main(){
 
-	testNFAconver();
+	Graph g;
+
+	testNFAconver(g);
+	printG(g);
+
+	cout << "ssss" << endl;
 
 	system("pause");
 }

@@ -1,5 +1,6 @@
 #include"lex.h"
 #include<stack>
+#include<iostream>
 using namespace std;
 
 //Graph类，没有考虑未分配成功的情况
@@ -382,26 +383,27 @@ bool Operation::connectOp(Graph& g, MidResult& a, MidResult& b){
 
 
 //NFA类
-NFA::NFA(Graph& g, int S0, char* allWord, int wordLength, int* F0, int F0Length){
-	this->allWord = allWord;
-	this->g = g;
-	this->S0 = S0;
-	this->wordLength = wordLength;
-	this->F0Length = F0Length;
-	this->allWord = new char[this->wordLength];
-	for (int i = 0; i < wordLength; i++){
-		this->allWord[i] = allWord[i];
+NFA::NFA(char* words , char *expression , int maxF0Length ) {
+	
+	this->F0 = new int[maxF0Length];
+	Operation op;
+	op.calute(this->g, expression, this->S0, this->F0[0]);//计算G
+	this->tail = 1;
+	this->maxF0Length = maxF0Length;
+	this->wordLength = strlen(words);
+	
+	this->words = new char[strlen(words)];
+	
+	for (unsigned i = 0; i < strlen(words); i++){
+		this->words[i] = words[i];
 	}
 
-
-	this->F0 = new int[this->F0Length];
-	for (int i = 0; i < F0Length; i++){
-		this->F0[i] = F0[i];
-	}
 }
-
+Graph& NFA::getG(){
+	return this->g;
+}
 NFA::~NFA(){
-	delete this->F0;
-	delete this->allWord;
-	printf("NFA回收成功");
+	delete[] this->F0;
+	delete[] this->words;
+	printf("NFA回收成功\n");
 }

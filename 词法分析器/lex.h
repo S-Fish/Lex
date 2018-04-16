@@ -43,14 +43,21 @@ class NFA
 private:
 	Graph g;//包括了状态S和mov函数
 	int S0;//初始状态
-	char* allWord;//字母表
+	char* words;//字母表
 	int wordLength;//对应字母表的数组长度
 	int* F0;//终态
-	int F0Length;//对应终态的数组长度
+	int tail;//F0的实际个数
+	int maxF0Length;//对应终态的数组长度
 public:
 
-	NFA(Graph& g,int S0,char* allWord,int wordLength,int* F0,int F0Length);
+	//无表达式子构造的就是一个空串到空串的状态机
+	//无参的构造函数words长度为空
+	NFA(char* words="\0",char *expression="#",int maxF0Length=100);
+	
+	//获得图
+	Graph& getG();
 
+	
 	~NFA();//不用析构g了,g会被g的析构函数自动析构,主要是需要去析构allWords和F0
 };
 
