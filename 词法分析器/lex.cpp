@@ -42,6 +42,26 @@ int Graph::getTail(){
 	return this->tail;
 }
 
+void Graph::clearG(){
+	
+	for(int a = 0; a < this->tail; a++){
+		//如果原来的有弧，要把弧的内存空间回收
+		Arc* p = nodes[a].firstArc;
+		//先判断节点有没有边，有边才处理
+		if (p != NULL){
+			while (p->nextArc != NULL){
+				Arc* temp = p->nextArc;
+				delete p;
+				p = temp;
+			}
+			delete p;//跳出while循环还差一个
+		}
+		nodes[a].firstArc = NULL;
+	}
+	this->tail = 0;
+}
+
+
 Graph::Graph(int maxLength ){
 	this->tail = 0;
 	this->maxLength = maxLength;
@@ -49,11 +69,12 @@ Graph::Graph(int maxLength ){
 	//开始的是一个空的需要进行一些操作
 	int S0 = newNode();
 	int F0 = newNode();
-	Arc* arc = new Arc;
+	/*Arc* arc = new Arc;
 	arc->changeValue = '\0';
 	arc->nextArc = NULL;
 	arc->nodeIndex = F0;
-	this->nodes[S0].firstArc = arc;
+	*/
+	this->nodes[S0].firstArc = NULL;
 	this->nodes[F0].firstArc = NULL;
 
 }
@@ -77,7 +98,7 @@ Graph::~Graph(){
 		}
 		printf("%d节点的弧被回收\n", i);
 	}
-	printf("弧回收完成");
+	printf("弧回收完成\n");
 
 	delete[] this->nodes;
 
@@ -108,8 +129,8 @@ void Graph::insertArc(int index,Arc* arc){
 //Operation类，主要完成正规式子到图的转化
 
 //将s进行初始化!!!
-void init0Arc(Arc* s,int nextNode){
-	s->changeValue = '\0';
+void init0Arc(Arc* s,int nextNode,char change='\0'){
+	s->changeValue = change;
 	s->nodeIndex = nextNode;
 	s->nextArc = NULL;
 }
@@ -398,6 +419,11 @@ NFA::NFA(char* words , char *expression , int maxF0Length ) {
 		this->words[i] = words[i];
 	}
 
+	vector<Node> nod;
+	convertDFAG(nod);
+
+	setG(nod);
+
 }
 Graph& NFA::getG(){
 	return this->g;
@@ -407,3 +433,266 @@ NFA::~NFA(){
 	delete[] this->words;
 	printf("NFA回收成功\n");
 }
+
+
+int NFA::elemInVector(int elem, const vector<int>& v){
+	int index = -1;
+
+	for (int i = 0; i < v.size(); i++){
+		if (elem == v.at(i)) {
+			index = i;
+			break;
+		}
+	}
+
+	return index;
+}
+
+int NFA::elemInVector(const vector<int>& elem, const vector<vector<int>>& v){
+	int index = -1;
+
+	for (int i = 0; i < v.size(); i++){
+		bool flag = 1;
+		for (int j = 0; j < elem.size(); j++){
+			if (elemInVector(elem.at(j), v.at(i)) == -1){
+				flag = 0;
+				break;
+			}
+		}
+		if (flag == 1){
+			index = i;
+			break;
+		}	
+	}
+
+	return index;
+}
+
+vector<int>& NFA::smove(int s, vector<int>& result, char c){
+	Node node = g.nodes[s];
+	Arc* p = node.firstArc;
+	while (p!=NULL)
+	{
+		if (p->changeValue == c){
+			result.push_back(p->nodeIndex);
+		}
+		p = p->nextArc;
+	}
+
+	return result;
+}
+
+vector<int>& NFA::NULLClose(vector<int>& states){
+
+	for (int i = 0; i < states.size(); i++){
+		
+		Arc* p = g.nodes[states.at(i)].firstArc;
+
+		while (p != NULL){
+			if (p->changeValue == '\0'){
+				if (elemInVector(p->nodeIndex, states) == -1){
+					states.push_back(p->nodeIndex);
+				}
+			}
+		
+			p = p->nextArc;
+		}
+	
+	}
+	return states;
+
+}
+
+//result=result+（result-c）
+vector<int>&  NFA::combineVector(vector<int>& result, const vector<int>& c){
+	
+	for (int i = 0; i < c.size(); i++){
+
+		//i在C中不在result中需要被压入
+		if (elemInVector(c.at(i), result) == -1){
+		
+			result.push_back(c.at(i));
+			
+		}
+	}
+	return result;
+}
+
+
+int NFA::setF0(vector<int>& F0S){
+	
+	
+	for (this->tail = 0; this->tail < F0S.size(); this->tail++){
+		extendsF0();
+		F0[tail] = F0S.at(tail);
+	}
+	
+	return this->tail;
+
+}
+
+bool NFA::extendsF0(){
+	bool result = 0;
+
+	//进行转移
+	if (this->tail >= this->maxF0Length){
+		
+		int * t = new int[maxF0Length * 2];
+
+		for (int i = 0; i < this->tail; i++){
+			t[i] = this->F0[i];
+		}
+
+		delete[] this->F0;
+		this->F0 = t;
+		this->maxF0Length = maxF0Length * 2;
+		result = 1;
+
+	}
+
+	return result;
+}
+
+void NFA::convertDFAG(vector<Node>& DFA){
+
+	vector<vector<int>> states;//后来的所有状态集都会在这个里面
+	
+	//计算S0;
+	vector<int> t;
+	t.push_back(S0);
+	NULLClose(t);
+	states.push_back(t);
+	
+	Node s0;
+	s0.firstArc = NULL;
+	DFA.push_back(s0);
+
+	//将states遍历一遍，这个size会不断的增加
+	for (int i = 0; i < states.size(); i++){
+
+		const vector<int> lastS = states.at(i);//上一个状态集合
+		
+		for (int j = 0; j < this->wordLength; j++){
+			
+			//求dfag的mov函数，mov(i,words[j])
+			vector<int> result;
+			for (int index = 0; index < lastS.size(); index++){
+				vector<int> t;
+				smove(lastS.at(index),t, this->words[j]);
+				combineVector(result, t);
+			}
+			NULLClose(result);
+			/*
+				1. 先判断result是不是空的，是空的则后面不用做
+				2. 找到result在states的位置（位置存t中）
+				3. result如果不在states中则表示将这个状态添加states中（位置存t中）
+				4. 存在t= mov(i,words[j]),将这个加入到dfag中去
+			*/
+			if (result.size() != 0){
+				int insertIndex = elemInVector(result, states);
+				if (insertIndex == -1){
+					insertIndex = states.size();
+					states.push_back(result);
+
+					Node node;
+					DFA.push_back(node);
+					//dfag.newNode();//在dfag上面new一个节点，节点需要好result对应的位置相同
+				}
+
+				//出现insertIndex=mov（i，words[j]);
+				Arc* arc = new Arc;
+				init0Arc(arc, insertIndex, words[j]);
+
+				Arc* p = DFA.at(i).firstArc;
+				if (p == NULL){
+					DFA.at(i).firstArc = arc;
+					continue;
+				}
+
+				while (p->nextArc != NULL)
+				{
+					p = p->nextArc;
+				}
+				p->nextArc = arc;
+				
+			}
+		}
+			
+	}
+
+	this->S0 = 0;
+	vector<int> F0temp;
+	for (int i = 0; i < states.size(); i++){
+		
+		for (int j = 0; j < tail; j++){
+			
+			if (elemInVector(F0[j], states.at(i)) != -1){
+				F0temp.push_back(i);
+			}
+		}
+	
+	}
+
+	setF0(F0temp);
+	
+	
+}
+
+void NFA::setG(vector<Node>& DFA){
+	g.clearG();
+	int index = 0;
+	for (int i = 0; i < DFA.size(); i++){
+		index = g.newNode();
+		g.nodes[index] = DFA[i];
+	}
+
+}
+
+/*
+//将DFA化简,将简化的结果直接放到g中就行
+void NFA::simplify(vector<Node>& DFA){
+	vector<vector<int>> states;//存放划分的
+	vector<int> benginA;		//除去终态的
+	vector<int> benginB;		//所有终态的
+	for (int i = 0; i < tail; i++){
+		benginB.push_back(this->F0[i]);	//终态核算完毕
+	}
+	for (int i = 0; i < DFA.size(); i++){
+		if (elemInVector(i, benginB) == -1){
+			benginA.push_back(i);
+		}
+	}
+	states.push_back(benginA);
+	states.push_back(benginB);
+	//---------初始化的工作和分组完成-------//
+
+
+
+
+
+
+}
+
+
+void getFinalyStates(vector<vector<int>>& states){
+	int length = states.size();
+
+	//对每一个states进行遍历
+	for (int i = 0; i < length; i++){
+		//进行分组
+		vector<vector<int>> tmp;
+		//添加到states的尾巴上面
+		for (int j = 0; j < tmp.size(); j++){
+			states.push_back(tmp.size);
+		}
+	}
+	//将前面的states删除掉
+
+	//判断有没有新的东西出现，如果有则长度一定改变了
+	if (states.size() != length){
+		getFinalyStates(states);
+	}
+
+
+}
+*/

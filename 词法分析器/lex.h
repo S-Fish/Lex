@@ -2,6 +2,8 @@
 #define LEX_H_
 
 #include<string>
+#include<vector>
+using namespace std;
 
 
 //图的转移，主要是来表示
@@ -10,6 +12,7 @@ struct Arc{
 	char changeValue;//变化的值"\0"表示为空值
 	Arc* nextArc = NULL;//表示下一个
 };
+
 
 
 //图的节点，这个表示一个个状态
@@ -26,6 +29,7 @@ private:
 	int maxLength;//nodes的最大长度，node采用new的方式来管理，当最大的时候会采用扩充的形式
 	int tail;	//现在节点用到的位置
 public:
+	void clearG();
 	Node* nodes;//各个节点，采用的数组形式
 	int newNode();//获得最最后一个节点的下一个，相当于分配
 	bool extendNodes();//扩展nodes数组
@@ -40,7 +44,7 @@ public:
 //考虑NFA，几个转化都是在这个类中实现的
 class NFA
 {
-private:
+protected:
 	Graph g;//包括了状态S和mov函数
 	int S0;//初始状态
 	char* words;//字母表
@@ -48,7 +52,44 @@ private:
 	int* F0;//终态
 	int tail;//F0的实际个数
 	int maxF0Length;//对应终态的数组长度
+
+
+	//判断elem是不是在v中，是则返回在v中的下标，否则返回-1
+	int elemInVector(int elem, const vector<int>& v);
+	int elemInVector(const vector<int>& elem, const vector<vector<int>>& v);
+
+	//计算result=Smove（s,c）
+	vector<int>& smove(int s, vector<int>& result, char c);
+
+
+	//求空闭包
+	vector<int>& NULLClose(vector<int>& states);
+
+
+	//设置F0s，返回的是tail
+	int setF0(vector<int>& F0S);
+
+
+	//防止F0不够进行扩展
+	bool extendsF0();
+
+	//result=result+（result-c）
+	vector<int>& combineVector(vector<int>& result, const vector<int>& c);
+
+
+	//将DFA化简,将简化的结果直接放到g中就行
+	void simplify(vector<Node>& DFA);
+
+	//根据vector<Node>给G赋值
+	void setG(vector<Node>& DFA);
 public:
+	int getF0(){
+		return this->F0[0];
+	}
+	int getS0(){
+		return this->S0;
+	}
+
 
 	//无表达式子构造的就是一个空串到空串的状态机
 	//无参的构造函数words长度为空
@@ -57,9 +98,34 @@ public:
 	//获得图
 	Graph& getG();
 
+	//设置图，为了析构，不知道直接等于会不会直接将原来的Graph析构
+	void setG(Graph& g);
+
+	void convertDFAG(vector<Node>& DFA);//将NFA的状态转化一下
+
+	
 	
 	~NFA();//不用析构g了,g会被g的析构函数自动析构,主要是需要去析构allWords和F0
 };
+
+class DFA:NFA
+{
+public:
+	DFA();
+	~DFA();
+
+private:
+
+};
+
+DFA::DFA()
+{
+}
+
+DFA::~DFA()
+{
+}
+
 
 //栈的中间结果
 struct MidResult
@@ -74,6 +140,7 @@ class Operation
 {
 private:
 	int index=0;//解析到表达式的位置;
+
 	//运算符号的优先级,六个运算符（"(",")","#","|",".","*"）,pri[i][j],表示i的优先级是不是大于j，i在j的左边
 	//1表示不需要操作，直接入栈，0表示需要进行操作
 	bool pri[6][6];

@@ -31,17 +31,17 @@ void printG(Graph& g){
 
 //测试第一个转化器
 void testNFAconver(Graph& g){
-	char* ex="(a|b)*.c.d.e#" ;
+	char* ex="(a|b)*.a.b.b#" ;
 
-	NFA nfa("abcde",ex);
+	NFA nfa("ab",ex);
+	//vector<Node> DFA;
+	//nfa.convertDFAG(DFA);
 	
 	//printG(nfa.getG());
-	g = nfa.getG();
-	/*
-	cout << "S0:" << S0 << endl;
-
-	cout << "F0:" << F0 << endl;
-	*/
+	//g = nfa.getG();
+	printG(nfa.getG());
+	
+	
 }
 
 int main(){
@@ -49,7 +49,7 @@ int main(){
 	Graph g;
 
 	testNFAconver(g);
-	printG(g);
+
 
 	cout << "ssss" << endl;
 
