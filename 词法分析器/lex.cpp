@@ -2,7 +2,7 @@
 #include<stack>
 #include<iostream>
 #include<fstream>
-
+#include<sstream>
 using namespace std;
 
 void init0Arc(Arc* s, int nextNode, char change = '\0');
@@ -248,7 +248,8 @@ bool Operation::calute(Graph& g, const char* expression, int& S0, int& F0){
 		}	
 		char c = this->getNextChar(expression);//获得一个数据
 		//if (c == '@');//c是一个转义字符下面的一个字符一定是操作数！！
-		if (c!='@'&&this->isOp(c)){//判断c是不是操作符
+		if (c!='@'&&this->isOp(c)){
+			//判断c是不是操作符
 			//是操作符的操作
 			char opa = '\0';
 			opa=op.top();
@@ -753,10 +754,12 @@ int DFA::getCharOfWords(char a){
 }
 
 void DFA::setTable(){
+	this->Length_of_S = g.getTail();//后来的析构函数要使用
+
 	this->DFAtable = new int*[g.getTail()];
 	for (int i = 0; i < g.getTail(); i++){
 		this->DFAtable[i] = new int[this->wordLength];
-		fill(this->DFAtable[i], this->DFAtable[i] + this->wordLength, -1);
+		fill(this->DFAtable[i], this->DFAtable[i] + this->wordLength, -1);//初始化
 	}
 
 	for (int i = 0; i < g.getTail(); i++){
@@ -838,24 +841,141 @@ DFA::DFA(const char* name, const char* words, const char *expression, const int 
 	}
 	*/
 }
+void DFA::getWords(vector<char>& Words){
+	for (int i = 0; i <this->wordLength; i++){
+		Words.push_back(this->words[i]);
+	}
+}
+void DFA::getF0s(vector<int>& F0S){
+	for (int i = 0; i < this->tail; i++){
+		F0S.push_back(this->F0[i]);
+	}
+
+}
 
 DFA::~DFA(){
 	
-	for (int i = 0; i < g.getTail(); i++){
+	for (int i = 0; i < this->Length_of_S; i++){
 		delete[] this->DFAtable[i];
 	}
 	delete[] this->DFAtable;
 
 }
 DFA::DFA(const DFA& dfa) :NFA(dfa){
-
+	
+	
+	this->Length_of_S = dfa.Length_of_S;
+	this->DFAtable = new int*[this->Length_of_S];
+	for (int i = 0; i <this->Length_of_S; i++){
+		this->DFAtable[i] = new int[this->wordLength];
+	}
+	//table转化DFAtable;
+	for (int i = 0; i < this->Length_of_S; i++){
+		for (int j = 0; j < this->wordLength; j++){
+			this->DFAtable[i][j] = dfa.DFAtable[i][j];
+		}
+	}
+	
+	/*
 	vector<Node> t;
 	this->convertDFAG(t);
 	this->simplify(t);
 	this->setG(t);
 	this->setTable();
+	*/
 	//cout << "copy DFA\n";
 }
+
+DFA::DFA(const char* name, const char* words, vector<int>& F0S, int S0, int table[400][300],int Length_Of_S) :NFA(name, words, "#", F0S.size()+1){
+
+	//table分配
+	this->Length_of_S = Length_Of_S;
+	this->DFAtable = new int*[this->Length_of_S];
+	for (int i = 0; i <this->Length_of_S; i++){
+		this->DFAtable[i] = new int[this->wordLength];
+	}
+	//table转化DFAtable;
+	for (int i = 0; i < this->Length_of_S; i++){
+		for (int j = 0; j < this->wordLength; j++){
+			this->DFAtable[i][j] = table[i][j];
+		}
+	}
+
+	this->setF0(F0S);
+	this->S0 = S0;
+	
+}
+void DFA::convertString(string& bufferString){
+	bufferString = "";
+	stringstream sstream;//正数化为字符串
+
+	//name S0
+	sstream.clear();
+	sstream <<S0<<" ";
+	bufferString = name;
+	string t;
+	sstream >> t;
+	bufferString = bufferString + " " + t + "\n";
+
+	//f0 f1 f2...
+	sstream.clear();
+	for (int i = 0; i < this->tail; i++){
+		sstream << F0[i] << " ";
+
+		sstream >> t;
+		bufferString = bufferString + t;
+
+		//是最后一个用换行，不是用空格隔开
+		if (i == this->tail - 1){
+			bufferString = bufferString + "\n";
+		}
+		else
+		{
+			bufferString = bufferString + " ";
+
+		}
+	}
+
+	//W1W2W3W4...
+	sstream.clear();
+	
+	for (int i = 0; i < this->wordLength; i++){
+		bufferString = bufferString + this->words[i];
+		
+	}
+	bufferString = bufferString + "\n";
+
+	/*-1 0 3 4 ...
+	3 4 5 1 ...
+	. . . .
+	. . . .
+	. . . .			//转化表
+	END				//表示这个DFA结束
+	*/
+	sstream.clear();
+
+	//int wordLength = this->wordsDefine[index].getWordLength();
+	for (int i = 0; i < this->Length_of_S; i++){
+	
+		for (int j = 0; j < wordLength; j++){
+			sstream << this->DFAtable[i][j]<<" ";
+			sstream >> t;
+			bufferString = bufferString + t;
+			//是最后一个用换行，不是用空格隔开
+			if (j == wordLength-1){
+				bufferString = bufferString + "\n";
+			}
+			else
+			{
+				bufferString = bufferString + " ";
+			}
+		}
+	}
+	bufferString = bufferString + "END\n";
+	cout << bufferString;
+	
+}
+
 
 /*
 //将DFA化简,将简化的结果直接放到g中就行
@@ -994,43 +1114,288 @@ void LexicalAnalyzer::analyWords(char* expression, char* words){
 
 }
 
-void LexicalAnalyzer::extendsExpression(const char*expression, char* extendsExp){}
+void LexicalAnalyzer::extendsExpression(const char*expression, char* extendsExp){
+
+}
 
 
 
 
-//构造函数，对构造文件内容的格式要求每一个定义结束要用换行结束，
-LexicalAnalyzer::LexicalAnalyzer(string path){
+void LexicalAnalyzer::parsingRegular(string path){
+	
 	//一行一行的构造
 	ifstream inFile(path.c_str());
 	string regular;
 	char expression[500];//表达式临时存放位置
 	char name[100];		//名字存放
 	char words[400];	//字母表存放
-	if (!inFile.is_open()){ 
-		cout << path<<"open fail"<<endl;
+	if (!inFile.is_open()){
+		cout << path << "open fail" << endl;
 
-		return; 
+		return;
 	}
 	int line = 1;
 
-	while (getline(inFile,regular)){
+	while (getline(inFile, regular)){
 		if (analyString(regular.c_str(), expression, name, words)){
 			DFA tmp(name, words, expression);
 
 			//不知道会会直接调用拷贝函数，同时在一个while循环结束时候会调用tmp的析构函数
 			this->wordsDefine.push_back(tmp);
-		
+
 		}
 		else
 		{
 
-			cout <<line<<"line: "<< regular <<"不符合正规式规范"<< endl;
+			cout << line << "line: " << regular << "不符合正规式规范" << endl;
 		}
 		line++;
 	}
 
 	inFile.close();
+
+
+
+	//解析完成后要将解析的结果存到别的文件中，方便下次调用
+	/*CLass的格式：
+	LexcailClass		//标识文件
+	name S0				//名字和初始状态，用空格隔开
+	F0 F2 F3 F4.....	//终态,各个终态用空格隔开
+	W1W2W3W4W5W6....	//字母表，不要用空格隔开
+	-1 0 3 4 ...
+	 3 4 5 1 ...
+	 . . . .
+	 . . . .
+	 . . . .			//转化表
+	 END				//表示这个DFA结束
+	*/
+	
+	stringstream sstream;//用于格式转化,整形转化为字符串，后来没有用到了
+	string newFileClassName;
+	sstream.clear();
+	string bufferString="";
+	//获得文件
+	const char* fileName = path.c_str();
+	int pointIndex = strlen(fileName);//.的位置
+	int begin = -1;					 //开始的位置，是第一个/位置
+	for (int i = strlen(fileName)-1; i >= 0; i--){
+		if (fileName[i] == '.'){ pointIndex = i; }
+		if (fileName[i] == '\\' || fileName[i] == '/'){
+			begin = i;
+			break;
+		}
+	}
+	
+	sstream << "classFile\\";
+	for (int i = begin + 1; i < pointIndex; i++){
+		sstream << fileName[i];
+	}
+	sstream << "class.txt";	//对应的文件为classFile\\fileName+class.txt
+	sstream >> newFileClassName;
+	
+	ofstream classFile(newFileClassName);
+	sstream.clear();
+	if (!classFile.is_open()){
+		cout << path << "create fail" << endl;
+		return;
+	}
+
+	//输入内容
+	//sstream << "LexcailClass\n";//文件标志记号
+	bufferString = "LexcailClass\n";
+	//sstream >> bufferString;
+	//cout << "--" << bufferString << endl;
+	classFile << bufferString;
+	
+	//各个DFA分别输入
+	for (int index = 0; index < this->wordsDefine.size(); index++){
+		this->wordsDefine[index].convertString(bufferString);
+		classFile << bufferString;
+		/*
+		//name S0
+		sstream.clear();
+		sstream << this->wordsDefine[index].getS0();
+		bufferString = this->wordsDefine[index].name;
+		string t;
+		sstream >> t;
+		bufferString = bufferString + " " + t + "\n";
+		cout << "--" << bufferString << endl;
+		classFile << bufferString;
+		
+		//f0 f1 f2...
+		sstream.clear();
+		F0S.clear();
+		bufferString = "";
+		this->wordsDefine[index].getF0s(F0S);
+		for (int i = 0; i < F0S.size(); i++){
+			//cout << "F0:" << F0S[i] << endl;
+			sstream << F0S[i]<<" ";
+			
+			sstream >> t;
+			bufferString = bufferString + t;
+			//是最后一个用换行，不是用空格隔开
+			if (i == F0S.size()-1){
+				bufferString = bufferString + "\n";
+			}else
+			{
+				bufferString = bufferString + " ";
+
+			}
+		}
+		//bufferString = "";
+		//sstream >> bufferString;
+		cout << "--"<<bufferString << endl;
+		classFile << bufferString;
+		//W1W2W3W4...
+		//sstream.clear();
+		charVector.clear();
+		bufferString = "";
+		this->wordsDefine[index].getWords(charVector);
+		for (int i = 0; i < charVector.size(); i++){
+			bufferString = bufferString + charVector[i];
+			//sstream << charVector[i];
+		}
+		//sstream << "\n";
+		bufferString = bufferString + "\n";
+		//sstream >> bufferString;
+		cout << "--" << bufferString << endl;
+		classFile << bufferString;
+
+		/*-1 0 3 4 ...
+			3 4 5 1 ...
+			. . . .
+			. . . .
+			. . . .			//转化表
+			END				//表示这个DFA结束
+		*/
+		/*sstream.str("");
+		
+		int wordLength = this->wordsDefine[index].getWordLength();
+		for (int i = 0; i < this->wordsDefine[index].Length_of_S; i++){
+			cout << i << endl;
+			for (int j = 0; i < wordLength; j++){
+				sstream << this->wordsDefine[index].DFAtable[i][j];
+				//是最后一个用换行，不是用空格隔开
+				if (j == wordLength-1){
+					sstream << "\n";
+				}
+				else
+				{
+					sstream << " ";
+
+				}
+			}
+		
+		}
+		classFile << sstream.str();
+		*/
+	}
+
+	classFile.close();
+	
+}
+
+
+
+void LexicalAnalyzer::parsingClass(string path){
+	ifstream readFile(path);
+	if (!readFile.is_open()){
+		cout << path << "open fail" << endl;
+		return;
+	}
+	string buffer;//用来输入数据的
+	getline(readFile, buffer);//文件的头部应该是LexcailClass,主要是做标识作用
+
+	//这个说明不是加载的 文件
+	if (strcmp(buffer.c_str(), "LexcailClass") != 0) return;
+	stringstream sstream;//字符串转化;
+	char name[100];
+	int S0;
+	vector<int> F0s;
+	string words ;
+	int table[400][300];
+
+
+	while (getline(readFile, buffer))
+	{
+		
+		
+		//1. geline获得 name S0
+		sstream.clear();//字符串流清0
+		sstream << buffer;//获得字符串流
+		sstream >> name;
+		sstream >> S0;
+		
+
+		//2. getline获得 F0 F1 F2...
+		F0s.clear();	//终态清0
+		sstream.clear();//字符串清0
+		getline(readFile, buffer);
+		sstream << buffer;
+		int intbuffer;
+		while (sstream>>intbuffer)
+		{
+			F0s.push_back(intbuffer);
+		}
+
+		//3. getline获得 W1W2W3W4...
+		getline(readFile, words);
+		
+		//words = buffer.c_str();//这里的words结束的时候变成了END!!!，编译器优化的结果？？？？
+
+
+		//4. getline获得表,以END结束
+		int Length_of_S=0;
+		while (true)
+		{
+			getline(readFile, buffer);
+
+			if (strcmp(buffer.c_str(), "END") == 0) break;
+
+			if (Length_of_S == 300){
+				cout << "状态数太多了\n";
+				readFile.close();
+				return;
+			}
+
+			//一行一行的读；
+			sstream.clear();
+			sstream << buffer;
+
+			int wordIndex = 0;
+			while (sstream>>intbuffer)
+			{
+				table[Length_of_S][wordIndex] = intbuffer;
+				wordIndex++;
+			}
+
+
+			Length_of_S++;
+		}
+
+		//构造函数
+		
+		DFA tmp(name,words.c_str(),F0s,S0,table, Length_of_S);
+		this->wordsDefine.push_back(tmp);
+	}
+
+
+	readFile.close();
+}
+
+//构造函数，对构造文件内容的格式要求每一个定义结束要用换行结束，
+LexicalAnalyzer::LexicalAnalyzer(string path, CONSTRUCT_TYPE type){
+	switch (type)
+	{
+	case PARSING_REGULAR:
+		parsingRegular(path);
+		break;
+	case PARSING_CLASS:
+		parsingClass(path);
+		break;
+	default:
+		break;
+	}
 }
 
 //在array中寻找最大
@@ -1071,9 +1436,12 @@ void LexicalAnalyzer::getMarkStream(string path){
 	ifstream inread(path);
 	if (!inread.is_open()){
 		cout << path << " open fail" << endl;
-
 		return;
 	}
+	
+	string markTxt="";//后来会将这个直接写入员程序
+	stringstream sstream;//转化line的作用
+	string t;//用作中间变量，int->string的桥梁
 	int line = 1;//错误标记作用,同时也记录位置
 	int beginIndex;
 	int* endIndex;
@@ -1102,8 +1470,13 @@ void LexicalAnalyzer::getMarkStream(string path){
 				wordsDefine[i].simDFA(code, beginIndex, endIndex[i], value[i]);
 			}
 			int nextBegin = findMaxIndex(endIndex, this->wordsDefine.size());
-			if (endIndex[nextBegin] != beginIndex)cout << "(line: " << line << ")" << "<" << wordsDefine.at(nextBegin).name << "," << value[nextBegin] << ")\n";
-
+			if (endIndex[nextBegin] != beginIndex){
+				sstream.clear();
+				sstream << line << " ";
+				sstream >> t;
+				markTxt = markTxt + "(line: " + t + ")" + "<" + wordsDefine[nextBegin].name + "," + value[nextBegin]+">\n";
+				//cout << "(line: " << line << ")" << "<" << wordsDefine.at(nextBegin).name << "," << value[nextBegin] << ")\n";
+			}
 			
 			//除掉空格和制表符号，因为关键字和ID的区分就是靠空格来实现的所有需要利用空格来区分
 			while (code[endIndex[nextBegin]] == ' ' || code[endIndex[nextBegin]] == '\t'){
@@ -1112,15 +1485,20 @@ void LexicalAnalyzer::getMarkStream(string path){
 
 			//出现一个无法识别的字符，将会被报错
 			if (endIndex[nextBegin] == beginIndex){
-				
-				cout << "error: line " <<line<<" "<<code[endIndex[nextBegin]] ;
+				sstream.clear();
+				sstream << line<<" ";
+				sstream >> t;
+				markTxt = markTxt + "error: line " + t + code[endIndex[nextBegin]];
+				//cout << "error: line " <<line<<" "<<code[endIndex[nextBegin]] ;
 				endIndex[nextBegin]++;//偏移一个位置
 				while (isInIDE(code[endIndex[nextBegin]]))
 				{
+					markTxt = markTxt + code[endIndex[nextBegin]];
 					cout << code[endIndex[nextBegin]];
 					endIndex[nextBegin]++;
 				}
-				cout << endl;
+				markTxt = markTxt + " \n";
+				//cout << endl;
 			}
 			
 			beginIndex = endIndex[nextBegin];
@@ -1138,4 +1516,39 @@ void LexicalAnalyzer::getMarkStream(string path){
 	delete[] value;
 	delete[] endIndex;
 	inread.close();
+
+
+
+
+
+	//将markTxt输入文件中,先创建文件
+	string sourceName;
+	sstream.clear();
+	//获得文件
+	const char* fileName = path.c_str();
+	int pointIndex = strlen(fileName);//.的位置
+	int begin = -1;					 //开始的位置，是第一个/位置
+	for (int i = strlen(fileName) - 1; i >= 0; i--){
+		if (fileName[i] == '.'){ pointIndex = i; }
+		if (fileName[i] == '\\' || fileName[i] == '/'){
+			begin = i;
+			break;
+		}
+	}
+
+	sstream << "markStream\\";
+	for (int i = begin + 1; i < pointIndex; i++){
+		sstream << fileName[i];
+	}
+	sstream << "mark.txt";	//对应的文件为classFile\\fileName+class.txt
+	sstream >> sourceName;
+
+	ofstream sourceFile(sourceName);
+	if (!sourceFile.is_open()){
+		cout << path << "create fail" << endl;
+		return;
+	}
+	sourceFile << markTxt;
+	sourceFile.close();
+
 }

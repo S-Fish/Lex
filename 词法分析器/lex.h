@@ -112,8 +112,7 @@ protected:
 	vector<int>& NULLClose(vector<int>& states);
 
 
-	//设置F0s，返回的是tail
-	int setF0(vector<int>& F0S);
+	
 
 
 	//防止F0不够进行扩展
@@ -135,7 +134,8 @@ public:
 		return this->S0;
 	}
 
-
+	//设置F0s，返回的是tail
+	int setF0(vector<int>& F0S);
 	//无表达式子构造的就是一个空串到空串的状态机
 	//无参的构造函数words长度为空
 	NFA(const char* name, const char* words = "\0", const char *expression = "#", int maxF0Length = 100);
@@ -162,8 +162,9 @@ class DFA:public NFA
 {
 
 private:
-	int** DFAtable;//状态转化表
 
+	int** DFAtable;//状态转化表
+	int Length_of_S;//S的状态数目
 	//DFA主要是在这三个函数中使用的节点
 	void convertDFAG(vector<Node>& DFA);//用在构造函数中，在父类构造完后，子类调用获得DFA
 	
@@ -179,6 +180,10 @@ private:
 	bool isInF0(int state);//判断states
 public:
 
+	
+
+	void convertString(string& s);//将这个类转化为TXT格式
+
 	//识别字符串，主要的对外服务
 	/*这里的str不是针对一个完整的字符串，而是一个字符串流,由字符串的beginIndex位置开始,
 	一直检测到不在这个DFA表达字母表(a+)中的或者接受对于某个节点没有这个字符串的边（1234，a1234）
@@ -187,24 +192,41 @@ public:
 	bool simDFA(const char* str, int beginIndex, int& endIndex,char* result);
 	//构造函数
 	DFA(const char* name = "", const char* words = "\0", const char *expression = "#", int maxF0Length = 100);
+	DFA(const char* name , const char* words,vector<int>& F0,int S0,int table[400][300],int Length_of_S);
+	void getF0s(vector<int>& F0S);
+	void getWords(vector<char>& Words);
 	DFA(const DFA& dfa);
 	~DFA();
 
 };
 
+enum CONSTRUCT_TYPE{
+	PARSING_REGULAR,//这个是根据正规式来通过运算得到
+	PARSING_CLASS,//这个不需要通过运算
 
+};
 //将所有的整合形成一个词法分析器
 class LexicalAnalyzer
 {
 public:
-	//注意，这里面需要读取一个文件里面的为各个定义
-	LexicalAnalyzer(string path="");
+	//注意，这里面需要读取一个文件里面的为各个定义,默认是通过正规式来解析
+	LexicalAnalyzer(string path = "", CONSTRUCT_TYPE type = PARSING_REGULAR);
 	~LexicalAnalyzer();
 
 	//将xx.c文件转化为记号流，保存在xxMark.txt中
 	void getMarkStream(string cpath="");
 
 private:
+
+	//解析正规式的构造函数选项入口
+
+	void parsingRegular(string path);
+
+	//解析类的类文件构造函数入口
+	void parsingClass(string path);
+
+
+
 	//分析str，同时将str分为两部分，一个部分为表达式，一个部分为名字，最后在表达式上面获得字母表
 	//name=expression(包括#)，所有的char*最后都是以\0结束
 	//返回为1则表示正确分析成功，返回为0则表示分析失败
