@@ -738,8 +738,164 @@ void DFA::setG(vector<Node>& DFA){
 
 }
 
-void DFA::simplify(vector<Node>& DFA){
+void DFA::simplify(){
+	
+	//初始化states;
+	vector<vector<int>> states;
+	vector<int> firstTmp;
+	bool* firstS0s = new bool[this->Length_of_S];//临时变量
+	for (int i = 0; i < this->Length_of_S; i++){
+		firstS0s[i] = true;
+	}
+
+	for (int i = 0; i < this->tail; i++){
+		firstTmp.push_back(this->F0[i]);
+		firstS0s[this->F0[i]] = false;
+	}
+	states.push_back(firstTmp);
+	firstTmp.clear();
+
+	for (int i = 0; i < this->Length_of_S; i++){
+		if (firstS0s[i]) firstTmp.push_back(i);
+	}
+	states.push_back(firstTmp);
+
+	delete[] firstS0s;
+
+	//初始化newTable;
+	vector<vector<int>> newTable;
+	for (int i = 0; i < this->Length_of_S; i++){
+		vector<int> tmp;
+		for (int j = 0; j < this->wordLength; j++){
+			tmp.push_back(this->DFAtable[i][j]);
+		}
+		newTable.push_back(tmp);
+	}
+	updateNewTable(newTable, states);
+
+	//根据新的表进行划分，如果不需要划分则退出，即states值没有改变，divide返回值为0
+	while (divide(newTable,states))
+	{
+		updateNewTable(newTable, states);//根据states将表进行重新划分
+	}
+
+	//终态的不用更新，只要将表更新一下，删除会比较麻烦，也省去
+	for (int index = 0; index < states.size(); index++){
+		if (states[index].size() != 1){
+			//对state来计算
+			for (int i = 0; i < Length_of_S; i++){
+				for (int j = 0; j < this->wordLength; j++){
+					int nextS0=this->DFAtable[i][j];
+					if (elemInVector(nextS0, states[index]) != -1){
+						this->DFAtable[i][j] = states[index][0];
+					}
+				}
+			}
+		}
+	}
+	
+	cout << "--------------------------\n";
+	for (int i = 0; i < states.size(); i++){
+		for (int j = 0; j < states[i].size(); j++){
+			cout << states[i][j] << " ";
+		}
+		cout << endl;
+	}
+	
 }
+
+int getIndex(const vector<vector<int>>& states,const int element){
+	int index = -1;
+	bool flag = false;
+	for (int i = 0; i < states.size(); i++){
+		for (int j = 0; j < states[i].size(); j++){
+			if (states[i][j] == element) {
+				index = i;
+				flag = true;
+				break;
+			}
+		}
+		if (flag == true) break;
+	}
+
+	return index;
+}
+
+//划分,根据新的表将状态重新划分，不是按照上一次的states的!!!返回1为进行了划分，返回0为没有进行划分
+bool  DFA::divide(const vector<vector<int>>& newTable, vector<vector<int>>& states){
+	 
+	bool* stateBool;
+	stateBool = new bool[newTable.size()]();//1表示没有被分类，0表示被分类了
+	fill(stateBool, stateBool + newTable.size(), true);//初始化
+	
+	vector<vector<int>> newStates;//根据newTable新生成的状态集;
+	/*
+	for (int i = 0; i < newTable.size()-1; i++){
+		if (state[i] == 0) continue;
+		vector<int> temp;
+		temp.push_back(i);
+		for (int j = i + 1; j < newTable.size(); j++){
+			if (newTable[i] == newTable[j]){
+				state[j] = 0;
+				temp.push_back(j);
+			}
+		}
+		newStates.push_back(temp);
+	}
+	*/
+	//对于每个分好的状态就行分
+	for (int i = 0; i < states.size(); i++){
+		//针对每个状态进行
+		for (int j = 0; j < states[i].size(); j++){//针对于size为1的情况，所以不用-1
+			if (stateBool[states[i][j]]){ //continue;
+				vector<int> tmp;
+				tmp.push_back(states[i][j]);
+				stateBool[states[i][j]] = false;
+				for (int n = j + 1; n < states[i].size(); n++){
+					if (newTable[states[i][j]] == newTable[states[i][n]]){
+						stateBool[states[i][n]] = false;
+						tmp.push_back(states[i][n]);
+					}
+				}
+				newStates.push_back(tmp);
+			}
+		}
+	
+	}
+	//两个长度不一样说明不同，长度一样说明相同
+	if (newStates.size() != states.size()){
+		
+		states.clear();
+		for (int i = 0; i < newStates.size(); i++){
+			states.push_back(newStates[i]);
+		}
+		
+		return 1;
+	}
+
+	return 0;
+}
+
+
+//根据划分进行表的划分
+void  DFA::updateNewTable(vector<vector<int>>& newTable, const vector<vector<int>>& states){
+	
+	for (int i = 0; i < this->Length_of_S; i++){
+		for (int j = 0; j < this->wordLength; j++){
+			int nextS = this->DFAtable[i][j];
+			if (nextS != -1){
+				int value = getIndex(states, nextS);
+				newTable[i][j] = value;
+			}
+			else
+			{
+				newTable[i][j] = -1;
+			}
+		}
+	
+	}
+}
+
 
 int DFA::getCharOfWords(char a){
 	int index = -1;
@@ -827,10 +983,9 @@ DFA::DFA(const char* name, const char* words, const char *expression, const int 
 	//printG(this->g);
 	vector<Node> t;
 	this->convertDFAG(t);
-	this->simplify(t);
 	this->setG(t);
 	this->setTable();
-
+	this->simplify();
 	
 	/*
 	for (int i = 0; i < this->g.getTail(); i++){

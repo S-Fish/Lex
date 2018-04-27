@@ -16,10 +16,10 @@ using namespace std;
 
 
 //测试第一个转化器
-void testNFAconver(Graph& g){
-	char* ex="(@||@*)*.@|.@*.@*#" ;
+void testNFAconver(){
+	char* ex="(a|b)*.a.b.b#" ;
 
-	DFA dfa("key","|*",ex);
+	DFA dfa("key","ab",ex);
 	//vector<Node> DFA;
 	//nfa.convertDFAG(DFA);
 	
@@ -27,6 +27,8 @@ void testNFAconver(Graph& g){
 	//g = nfa.getG();
 	//printG(dfa.getG());
 	
+
+	/*
 	char* sss = "||*|*t|**;";
 	int length = strlen(sss);
 	int benginIndex = 0;
@@ -43,14 +45,14 @@ void testNFAconver(Graph& g){
 		benginIndex = endlIndex;
 
 	}
-	
+	*/
 	
 
 }
 
 //测试词法分析器
 void testLexcial(){
-	LexicalAnalyzer l("classFile\\testclass.txt", PARSING_CLASS);
+	LexicalAnalyzer l("test.txt", PARSING_REGULAR);
 	l.getMarkStream("s.txt");//对于12345A会识别为两个一个是数字<number,12345> 一个是<id,A>;
 }
 
@@ -58,6 +60,7 @@ void testLexcial(){
 
 //调试作用
 int main(){
+	//testNFAconver();
 	testLexcial();
 	system("pause");
 	return 0;

@@ -169,7 +169,7 @@ private:
 	void convertDFAG(vector<Node>& DFA);//用在构造函数中，在父类构造完后，子类调用获得DFA
 	
 	//将DFA化简,将简化的结果直接放到g中就行
-	void simplify(vector<Node>& DFA);
+	void simplify();
 	
 	void setG(vector<Node>& DFA);//根据vector<Node>给G赋值,最小化后要使用的
 
@@ -178,6 +178,8 @@ private:
 	int getCharOfWords(char a);//获得字符串在words里面的下标
 
 	bool isInF0(int state);//判断states
+	bool  DFA::divide(const vector<vector<int>>& newTable, vector<vector<int>>& states);
+	void  DFA::updateNewTable(vector<vector<int>>& newTable, const vector<vector<int>>& states);
 public:
 
 	
